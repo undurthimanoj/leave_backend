@@ -34,7 +34,6 @@ const LeaveSchema = new mongoose.Schema({
 const LeaveApplication = mongoose.model("LeaveApplication", LeaveSchema);
 
 // Configure email with your Gmail credentials
-// *** FIXED: Now using EMAIL_PASS directly as you have it in .env file ***
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
@@ -50,7 +49,7 @@ const transporter = nodemailer.createTransport({
   secure: true,
   auth: {
     user: EMAIL_USER,
-    pass: EMAIL_PASS  // Using EMAIL_PASS from .env instead of EMAIL_APP_PASSWORD
+    pass: EMAIL_PASS
   }
 });
 
@@ -58,13 +57,6 @@ const transporter = nodemailer.createTransport({
 transporter.verify(function(error, success) {
   if (error) {
     console.error("Transporter verification failed:", error);
-    console.error("\n------------------------------------");
-    console.error("AUTHENTICATION ERROR: Please check that:");
-    console.error("1. Your App Password is correct");
-    console.error("2. 2FA is enabled on your Google account");
-    console.error("3. Less secure app access is disabled");
-    console.error("4. Your email address is correct");
-    console.error("------------------------------------\n");
   } else {
     console.log("Server is ready to send emails");
   }
@@ -105,7 +97,6 @@ const sendNotificationEmail = async (application, status) => {
       html: emailBody
     };
     
-    // Send email and await the result
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.response);
     return true;
@@ -116,9 +107,16 @@ const sendNotificationEmail = async (application, status) => {
 };
 
 // API Routes
+app.get("/", (req, res) => {
+  res.json({ message: "Welcome to the Leave Application API!" });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "Server is healthy" });
+});
+
 app.get("/api/leave-applications", async (req, res) => {
   try {
-    // Removed the select() method to ensure ALL fields including reason are returned
     const applications = await LeaveApplication.find();
     res.json(applications);
   } catch (error) {
@@ -154,24 +152,19 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
       return res.status(404).json({ message: "Application not found" });
     }
     
-    // Store old status to check if it changed
     const oldStatus = application.status;
     application.status = status;
     await application.save();
     
-    // Only send email if status changed to Approved or Not Approved
     if ((status === "Approved" || status === "Not Approved") && oldStatus !== status) {
       try {
         const emailSent = await sendNotificationEmail(application, status);
-        console.log(`Email notification ${emailSent ? 'sent' : 'failed'} for ${application.email}`);
-        
         res.json({ 
           message: "Status updated successfully", 
           updatedApplication: application,
           emailStatus: emailSent ? "Email notification sent" : "Failed to send email notification"
         });
       } catch (emailError) {
-        console.error("Email error:", emailError);
         res.json({ 
           message: "Status updated but email notification failed", 
           updatedApplication: application,
@@ -186,7 +179,6 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error updating status:", error);
     res.status(500).json({ message: "Error updating status", error });
   }
 });
@@ -196,15 +188,12 @@ app.get("/test-email", async (req, res) => {
   try {
     const testApplication = {
       name: "Test User",
-      email: process.env.TEST_EMAIL || EMAIL_USER, // Use a test email or the sender email
+      email: process.env.TEST_EMAIL || EMAIL_USER,
       course: "Test Course",
       subject: "Test Subject",
       reason: "Test Reason",
       date: new Date()
     };
-    
-    // Log the test email being sent
-    console.log(`Attempting to send test email to: ${testApplication.email}`);
     
     const emailSent = await sendNotificationEmail(testApplication, "Approved");
     res.json({ 
@@ -212,7 +201,6 @@ app.get("/test-email", async (req, res) => {
       message: emailSent ? "Test email sent successfully" : "Failed to send test email" 
     });
   } catch (error) {
-    console.error("Error in test email route:", error);
     res.status(500).json({ message: "Error testing email", error: error.message });
   }
 });

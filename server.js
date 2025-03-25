@@ -16,7 +16,7 @@ app.use(cors());
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB (removed deprecated options)
-mongoose.connect("mongodb+srv://manojlovely679:dypJK1gca7wt4AQe@cluster0.j8r8s.mongodb.net/")
+mongoose.connect("mongodb+srv://manojlovely679:dypJK1gca7wt4AQe@cluster0.j8r8s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.error("MongoDB connection error:", err));
 

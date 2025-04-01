@@ -15,9 +15,13 @@ app.use(cors());
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB using environment variable for connection string
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://manojlovely679:dypJK1gca7wt4AQe@cluster0.j8r8s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://manoj:manoj@cluster0.j8r8s.mongodb.net/leaveDB?retryWrites=true&w=majority&appName=Cluster0";
 
-mongoose.connect(MONGODB_URI)
+// Update MongoDB connection with modern options
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.error("MongoDB connection error:", err));
 
@@ -25,7 +29,7 @@ mongoose.connect(MONGODB_URI)
 const LeaveSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
-  cell: { type: String, required: true }, // Added missing field from form
+  cell: { type: String, required: true },
   course: { type: String, required: true },
   subject: { type: String, required: true },
   reason: { type: String, required: true },
@@ -33,7 +37,8 @@ const LeaveSchema = new mongoose.Schema({
   status: { type: String, default: "Pending" },
 });
 
-const LeaveApplication = mongoose.model("LeaveApplication", LeaveSchema);
+// Explicitly set the collection name to avoid pluralization issues
+const LeaveApplication = mongoose.model("LeaveApplication", LeaveSchema, "leaveapplications");
 
 // Configure email with your Gmail credentials
 const EMAIL_USER = process.env.EMAIL_USER;

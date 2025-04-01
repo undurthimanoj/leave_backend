@@ -2,7 +2,6 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import nodemailer from "nodemailer";
-import { google } from "googleapis";
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
@@ -15,18 +14,21 @@ app.use(cors());
 // Set port - use environment variable or fallback with alternative
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB (removed deprecated options)
-mongoose.connect("mongodb+srv://manojlovely679:dypJK1gca7wt4AQe@cluster0.j8r8s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+// Connect to MongoDB using environment variable for connection string
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://manojlovely679:dypJK1gca7wt4AQe@cluster0.j8r8s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.error("MongoDB connection error:", err));
 
 // Schema for leave applications
 const LeaveSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  course: String,
-  subject: String,
-  reason: String,
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  cell: { type: String, required: true }, // Added missing field from form
+  course: { type: String, required: true },
+  subject: { type: String, required: true },
+  reason: { type: String, required: true },
   date: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" },
 });
@@ -36,11 +38,6 @@ const LeaveApplication = mongoose.model("LeaveApplication", LeaveSchema);
 // Configure email with your Gmail credentials
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
-
-// Log credentials for debugging (remove in production)
-console.log("Email configuration:");
-console.log("- User:", EMAIL_USER);
-console.log("- Password configured:", EMAIL_PASS ? "Yes (length: " + EMAIL_PASS.length + ")" : "No");
 
 // Create a transporter using gmail with App Password
 const transporter = nodemailer.createTransport({
@@ -120,32 +117,57 @@ app.get("/api/leave-applications", async (req, res) => {
     const applications = await LeaveApplication.find();
     res.json(applications);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching applications", error });
+    res.status(500).json({ message: "Error fetching applications", error: error.message });
   }
 });
 
 app.post("/submit-application", async (req, res) => {
   try {
-    const { name, email, course, subject, reason } = req.body;
+    console.log("Received form data:", req.body);
+    
+    // Validate required fields
+    const { name, email, cell, course, subject, reason } = req.body;
+    
+    if (!name || !email || !cell || !course || !subject || !reason) {
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        receivedData: req.body 
+      });
+    }
 
     const newApplication = new LeaveApplication({
       name,
       email,
+      cell,
       course,
       subject,
       reason,
     });
 
-    await newApplication.save();
-    res.status(201).json({ message: "Application submitted successfully" });
+    const savedApplication = await newApplication.save();
+    console.log("Application saved:", savedApplication);
+    res.status(201).json({ 
+      message: "Application submitted successfully",
+      applicationId: savedApplication._id 
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error submitting application", error });
+    console.error("Error submitting application:", error);
+    // Send detailed error for debugging
+    res.status(500).json({ 
+      message: "Error submitting application", 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
 app.patch("/api/leave-applications/:id", async (req, res) => {
   try {
     const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+    
     const application = await LeaveApplication.findById(req.params.id);
     
     if (!application) {
@@ -179,29 +201,7 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error });
-  }
-});
-
-// Test route to verify email functionality
-app.get("/test-email", async (req, res) => {
-  try {
-    const testApplication = {
-      name: "Test User",
-      email: process.env.TEST_EMAIL || EMAIL_USER,
-      course: "Test Course",
-      subject: "Test Subject",
-      reason: "Test Reason",
-      date: new Date()
-    };
-    
-    const emailSent = await sendNotificationEmail(testApplication, "Approved");
-    res.json({ 
-      success: emailSent, 
-      message: emailSent ? "Test email sent successfully" : "Failed to send test email" 
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Error testing email", error: error.message });
+    res.status(500).json({ message: "Error updating status", error: error.message });
   }
 });
 

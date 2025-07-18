@@ -2,30 +2,28 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import nodemailer from "nodemailer";
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
-// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Set port - use environment variable or fallback with alternative
+// PORT
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB using environment variable for connection string
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://manoj:manoj@cluster0.j8r8s.mongodb.net/leaveDB?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB
+const MONGODB_URI =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://manoj:manoj@cluster0.j8r8s.mongodb.net/leaveDB?retryWrites=true&w=majority&appName=Cluster0";
 
-// Update MongoDB connection with modern options
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log("Connected to MongoDB"))
-  .catch(err => console.error("MongoDB connection error:", err));
+mongoose
+  .connect(MONGODB_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Schema for leave applications
+// Schema
 const LeaveSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
@@ -37,78 +35,89 @@ const LeaveSchema = new mongoose.Schema({
   status: { type: String, default: "Pending" },
 });
 
-// Explicitly set the collection name to avoid pluralization issues
-const LeaveApplication = mongoose.model("LeaveApplication", LeaveSchema, "leaveapplications");
+const LeaveApplication = mongoose.model(
+  "LeaveApplication",
+  LeaveSchema,
+  "leaveapplications"
+);
 
-// Configure email with your Gmail credentials
+// Email setup
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
-// Create a transporter using gmail with App Password
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  service: "gmail",
   auth: {
     user: EMAIL_USER,
-    pass: EMAIL_PASS
-  }
+    pass: EMAIL_PASS,
+  },
 });
 
-// Verify transporter configuration
-transporter.verify(function(error, success) {
+transporter.verify((error, success) => {
   if (error) {
-    console.error("Transporter verification failed:", error);
+    console.error("❌ Transporter verification failed:", error);
   } else {
-    console.log("Server is ready to send emails");
+    console.log("📧 Server is ready to send emails");
   }
 });
 
-// Function to send notification emails
+// ✅ Professional email function with logo
 const sendNotificationEmail = async (application, status) => {
   try {
     const subjectPrefix = status === "Approved" ? "APPROVED" : "NOT APPROVED";
-    const emailBody = status === "Approved" 
-      ? `<p>Dear ${application.name},</p>
-         <p>We are pleased to inform you that your leave application for "${application.subject}" has been approved.</p>
-         <p>Details of your application:</p>
-         <ul>
-           <li>Course: ${application.course}</li>
-           <li>Subject: ${application.subject}</li>
-           <li>Reason: ${application.reason}</li>
-           <li>Date Submitted: ${new Date(application.date).toLocaleDateString()}</li>
-         </ul>
-         <p>Thank you for using our application system.</p>
-         <p>Regards,<br>Hostel Warden</p>`
-      : `<p>Dear ${application.name},</p>
-         <p>We regret to inform you that your leave application for "${application.subject}" has not been approved.</p>
-         <p>Details of your application:</p>
-         <ul>
-           <li>Course: ${application.course}</li>
-           <li>Subject: ${application.subject}</li>
-           <li>Reason: ${application.reason}</li>
-           <li>Date Submitted: ${new Date(application.date).toLocaleDateString()}</li>
-         </ul>
-         <p>If you have any questions regarding this decision, please contact the Hostel Warden.</p>
-         <p>Regards,<br>Hostel Warden</p>`;
-    
+
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; background-color: #f6f8fa; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+          <div style="background-color: #0b5ed7; padding: 20px; text-align: center;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Emblem_of_Andhra_Pradesh.svg/1200px-Emblem_of_Andhra_Pradesh.svg.png" alt="Logo" style="height: 80px; margin-bottom: 10px;" />
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Government of Andhra Pradesh</h1>
+          </div>
+          <div style="padding: 30px;">
+            <h2 style="color: #333333; font-size: 20px; margin-top:0;">Leave Application ${subjectPrefix}</h2>
+            <p style="color: #555555; font-size: 16px;">Dear <strong>${application.name}</strong>,</p>
+            ${
+              status === "Approved"
+                ? `<p style="color: #28a745; font-size: 16px;">✅ We are pleased to inform you that your leave application for <strong>${application.subject}</strong> has been approved.</p>`
+                : `<p style="color: #dc3545; font-size: 16px;">❌ We regret to inform you that your leave application for <strong>${application.subject}</strong> has not been approved.</p>`
+            }
+            <div style="background-color: #f0f0f0; padding: 15px; border-radius: 6px; margin-top: 20px;">
+              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Course:</strong> ${application.course}</p>
+              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Subject:</strong> ${application.subject}</p>
+              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Reason:</strong> ${application.reason}</p>
+              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Date Submitted:</strong> ${new Date(
+                application.date
+              ).toLocaleDateString()}</p>
+            </div>
+            <p style="margin-top: 25px; font-size: 15px; color: #555;">
+              If you have any questions regarding this decision, please contact the hostel warden.
+            </p>
+            <p style="margin-top: 30px; font-size: 14px; color: #888;">Regards,<br><strong>Hostel Warden</strong></p>
+          </div>
+          <div style="background-color: #f1f1f1; text-align: center; padding: 15px;">
+            <p style="margin: 0; font-size: 13px; color: #777;">© ${new Date().getFullYear()} Government of Andhra Pradesh. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
     const mailOptions = {
       from: EMAIL_USER,
       to: application.email,
       subject: `Leave Application ${subjectPrefix}: ${application.subject}`,
-      html: emailBody
+      html: emailBody,
     };
-    
+
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully:", info.response);
+    console.log("✅ Email sent successfully:", info.response);
     return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("❌ Error sending email:", error);
     return false;
   }
 };
 
-// API Routes
+// Routes
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to the Leave Application API!" });
 });
@@ -122,24 +131,19 @@ app.get("/api/leave-applications", async (req, res) => {
     const applications = await LeaveApplication.find();
     res.json(applications);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching applications", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching applications", error: error.message });
   }
 });
 
 app.post("/submit-application", async (req, res) => {
   try {
     console.log("Received form data:", req.body);
-    
-    // Validate required fields
     const { name, email, cell, course, subject, reason } = req.body;
-    
     if (!name || !email || !cell || !course || !subject || !reason) {
-      return res.status(400).json({ 
-        message: "Missing required fields", 
-        receivedData: req.body 
-      });
+      return res.status(400).json({ message: "Missing required fields" });
     }
-
     const newApplication = new LeaveApplication({
       name,
       email,
@@ -148,61 +152,44 @@ app.post("/submit-application", async (req, res) => {
       subject,
       reason,
     });
-
     const savedApplication = await newApplication.save();
-    console.log("Application saved:", savedApplication);
-    res.status(201).json({ 
+    console.log("✅ Application saved:", savedApplication);
+    res.status(201).json({
       message: "Application submitted successfully",
-      applicationId: savedApplication._id 
+      applicationId: savedApplication._id,
     });
   } catch (error) {
-    console.error("Error submitting application:", error);
-    // Send detailed error for debugging
-    res.status(500).json({ 
-      message: "Error submitting application", 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    console.error("❌ Error submitting application:", error);
+    res.status(500).json({ message: "Error submitting application", error: error.message });
   }
 });
 
 app.patch("/api/leave-applications/:id", async (req, res) => {
   try {
     const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ message: "Status is required" });
-    }
-    
+    if (!status) return res.status(400).json({ message: "Status is required" });
+
     const application = await LeaveApplication.findById(req.params.id);
-    
-    if (!application) {
-      return res.status(404).json({ message: "Application not found" });
-    }
-    
+    if (!application) return res.status(404).json({ message: "Application not found" });
+
     const oldStatus = application.status;
     application.status = status;
     await application.save();
-    
+
     if ((status === "Approved" || status === "Not Approved") && oldStatus !== status) {
-      try {
-        const emailSent = await sendNotificationEmail(application, status);
-        res.json({ 
-          message: "Status updated successfully", 
-          updatedApplication: application,
-          emailStatus: emailSent ? "Email notification sent" : "Failed to send email notification"
-        });
-      } catch (emailError) {
-        res.json({ 
-          message: "Status updated but email notification failed", 
-          updatedApplication: application,
-          emailError: emailError.message
-        });
-      }
-    } else {
-      res.json({ 
-        message: "Status updated successfully", 
+      const emailSent = await sendNotificationEmail(application, status);
+      res.json({
+        message: "Status updated successfully",
         updatedApplication: application,
-        emailStatus: "No email notification needed"
+        emailStatus: emailSent
+          ? "Email notification sent"
+          : "Failed to send email notification",
+      });
+    } else {
+      res.json({
+        message: "Status updated successfully",
+        updatedApplication: application,
+        emailStatus: "No email notification needed",
       });
     }
   } catch (error) {
@@ -210,16 +197,18 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
   }
 });
 
-// Start the server with error handling for port in use
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.log(`Port ${PORT} is busy, trying alternative port ${PORT + 1}...`);
-    app.listen(PORT + 1, () => {
-      console.log(`Server running on alternative port ${PORT + 1}`);
-    });
-  } else {
-    console.error('Server error:', err);
-  }
-});
+// Start server
+const server = app
+  .listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  })
+  .on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.log(`Port ${PORT} is busy, trying alternative port ${PORT + 1}...`);
+      app.listen(PORT + 1, () => {
+        console.log(`🚀 Server running on alternative port ${PORT + 1}`);
+      });
+    } else {
+      console.error("❌ Server error:", err);
+    }
+  });

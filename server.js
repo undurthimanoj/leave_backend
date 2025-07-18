@@ -10,10 +10,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// PORT
+// ====== PORT ======
 const PORT = process.env.PORT || 5000;
 
-// MongoDB
+// ====== MONGODB ======
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb+srv://manoj:manoj@cluster0.j8r8s.mongodb.net/leaveDB?retryWrites=true&w=majority&appName=Cluster0";
@@ -23,7 +23,7 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Schema
+// ====== SCHEMA ======
 const LeaveSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
@@ -41,7 +41,7 @@ const LeaveApplication = mongoose.model(
   "leaveapplications"
 );
 
-// Email setup
+// ====== EMAIL TRANSPORT ======
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
@@ -57,11 +57,11 @@ transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Transporter verification failed:", error);
   } else {
-    console.log("📧 Server is ready to send emails");
+    console.log("📧 Email transporter is ready");
   }
 });
 
-// ✅ Professional email function with logo
+// ====== SEND EMAIL FUNCTION ======
 const sendNotificationEmail = async (application, status) => {
   try {
     const subjectPrefix = status === "Approved" ? "APPROVED" : "NOT APPROVED";
@@ -69,10 +69,16 @@ const sendNotificationEmail = async (application, status) => {
     const emailBody = `
       <div style="font-family: Arial, sans-serif; background-color: #f6f8fa; padding: 20px;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+          
+          <!-- HEADER WITH LOGO -->
           <div style="background-color: #0b5ed7; padding: 20px; text-align: center;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Emblem_of_Andhra_Pradesh.svg/1200px-Emblem_of_Andhra_Pradesh.svg.png" alt="Logo" style="height: 80px; margin-bottom: 10px;" />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Emblem_of_Andhra_Pradesh.svg/800px-Emblem_of_Andhra_Pradesh.svg.png" 
+                 alt="Government Logo" 
+                 style="height: 80px; display:block; margin:0 auto 10px auto;" />
             <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Government of Andhra Pradesh</h1>
           </div>
+
+          <!-- BODY -->
           <div style="padding: 30px;">
             <h2 style="color: #333333; font-size: 20px; margin-top:0;">Leave Application ${subjectPrefix}</h2>
             <p style="color: #555555; font-size: 16px;">Dear <strong>${application.name}</strong>,</p>
@@ -81,19 +87,24 @@ const sendNotificationEmail = async (application, status) => {
                 ? `<p style="color: #28a745; font-size: 16px;">✅ We are pleased to inform you that your leave application for <strong>${application.subject}</strong> has been approved.</p>`
                 : `<p style="color: #dc3545; font-size: 16px;">❌ We regret to inform you that your leave application for <strong>${application.subject}</strong> has not been approved.</p>`
             }
+
             <div style="background-color: #f0f0f0; padding: 15px; border-radius: 6px; margin-top: 20px;">
-              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Course:</strong> ${application.course}</p>
-              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Subject:</strong> ${application.subject}</p>
-              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Reason:</strong> ${application.reason}</p>
-              <p style="margin: 4px 0; font-size: 15px; color: #333;"><strong>Date Submitted:</strong> ${new Date(
+              <p style="margin: 6px 0; font-size: 15px; color: #333;"><strong>📌 Course:</strong> ${application.course}</p>
+              <p style="margin: 6px 0; font-size: 15px; color: #333;"><strong>📌 Subject:</strong> ${application.subject}</p>
+              <p style="margin: 6px 0; font-size: 15px; color: #333;"><strong>📌 Reason:</strong> ${application.reason}</p>
+              <p style="margin: 6px 0; font-size: 15px; color: #333;"><strong>📅 Date Submitted:</strong> ${new Date(
                 application.date
               ).toLocaleDateString()}</p>
             </div>
+
             <p style="margin-top: 25px; font-size: 15px; color: #555;">
               If you have any questions regarding this decision, please contact the hostel warden.
             </p>
+
             <p style="margin-top: 30px; font-size: 14px; color: #888;">Regards,<br><strong>Hostel Warden</strong></p>
           </div>
+
+          <!-- FOOTER -->
           <div style="background-color: #f1f1f1; text-align: center; padding: 15px;">
             <p style="margin: 0; font-size: 13px; color: #777;">© ${new Date().getFullYear()} Government of Andhra Pradesh. All rights reserved.</p>
           </div>
@@ -117,7 +128,7 @@ const sendNotificationEmail = async (application, status) => {
   }
 };
 
-// Routes
+// ====== ROUTES ======
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to the Leave Application API!" });
 });
@@ -131,9 +142,7 @@ app.get("/api/leave-applications", async (req, res) => {
     const applications = await LeaveApplication.find();
     res.json(applications);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching applications", error: error.message });
+    res.status(500).json({ message: "Error fetching applications", error: error.message });
   }
 });
 
@@ -141,9 +150,11 @@ app.post("/submit-application", async (req, res) => {
   try {
     console.log("Received form data:", req.body);
     const { name, email, cell, course, subject, reason } = req.body;
+
     if (!name || !email || !cell || !course || !subject || !reason) {
       return res.status(400).json({ message: "Missing required fields" });
     }
+
     const newApplication = new LeaveApplication({
       name,
       email,
@@ -152,6 +163,7 @@ app.post("/submit-application", async (req, res) => {
       subject,
       reason,
     });
+
     const savedApplication = await newApplication.save();
     console.log("✅ Application saved:", savedApplication);
     res.status(201).json({
@@ -181,9 +193,7 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
       res.json({
         message: "Status updated successfully",
         updatedApplication: application,
-        emailStatus: emailSent
-          ? "Email notification sent"
-          : "Failed to send email notification",
+        emailStatus: emailSent ? "Email notification sent" : "Failed to send email",
       });
     } else {
       res.json({
@@ -197,8 +207,8 @@ app.patch("/api/leave-applications/:id", async (req, res) => {
   }
 });
 
-// Start server
-const server = app
+// ====== START SERVER ======
+app
   .listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   })

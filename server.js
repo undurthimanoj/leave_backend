@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
 // Load environment variables
-dotenv.config();
+dotenv.config();  
 
 const app = express();
 app.use(express.json());
